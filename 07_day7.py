@@ -1,6 +1,6 @@
 # Clean the input
 import re
-
+import pdb
 
 def clean_input(input_data):
     result = {}
@@ -68,6 +68,79 @@ def get_root(input_data):
     root = find_root(data_hierarchy)
     return root
 
+# PART2
+
+
+def weighted_input(input_data):
+    result = {}
+    pattern = r'\(\d+\)'
+    for line in input_data.splitlines():
+        try:
+            parent, children = line.split('->')
+        except ValueError:
+            parent = line.strip()
+            children = ''
+        weight = re.search(pattern, parent).group()
+        parent = parent.replace(weight, '').strip()
+        weight = int(weight.strip('(').strip(')'))
+        result[parent] = {'children': children.strip(), 'weight': weight}
+    return result
+
+
+def get_hierarchy(input_data):
+    clean_data = clean_input(input_data)
+    sorted_data = sort_progs(clean_data)
+    data_hierarchy = build_hierarchies(sorted_data)
+    return data_hierarchy
+
+
+
+
+def find_branch_weights(hierarchy, wt_data, root, wt=0):
+    if not hierarchy.get(root):
+        return wt_data[root]['weight']
+    else:
+        wt = wt_data[root]['weight']
+        for child in hierarchy.get(root):
+            wt += find_branch_weights(hierarchy, wt_data, child, wt)
+    return wt
+
+
+def find_weights(hierarchy, wt_data, root):
+    weights = {}
+    for key in hierarchy[root]:
+        weights[key] = find_branch_weights(hierarchy, wt_data, key)
+    return weights
+
+
+def find_outlier(hierarchy, weighted_branches, wt_data, prev_branch={}):
+    wts = list(weighted_branches.values())
+    outlier = [i for i in wts if wts.count(i) == 1]
+    if not outlier:
+        wts = list(prev_branch.values())
+        outlier = [i for i in wts if wts.count(i) == 1][0]
+        correct = [i for i in wts if wts.count(i) > 1][0]
+        diff = correct - outlier
+        for branch in prev_branch:
+            if prev_branch[branch] == outlier:
+                weight_to_correct = wt_data[branch]['weight'] + diff
+                return weight_to_correct
+    else:
+        for branch in weighted_branches:
+            if weighted_branches[branch] == outlier[0]:
+                current_branch = weighted_branches
+                inner_branches = find_weights(hierarchy, wt_data, branch)
+                return find_outlier(hierarchy, inner_branches,
+                                    wt_data, current_branch)
+
+
+def get_unbalanced(input_data):
+    wt_data = weighted_input(input_data)
+    hierarchy = get_hierarchy(input_data)
+    root = find_root(hierarchy)
+    weighted_branches = find_weights(hierarchy, wt_data, root)
+    return find_outlier(hierarchy, weighted_branches, wt_data)
+
 
 if __name__ == '__main__':
     input_data = """pbga (66)
@@ -84,6 +157,7 @@ ugml (68) -> gyxo, ebii, jptl
 gyxo (61)
 cntj (57)"""
     print(get_root(input_data))  # Expected tknk
+    print(get_unbalanced(input_data))  # Expected 60
     input_data = """navfz (187) -> jviwcde, wfwor, vpfabxa
 adtfnx (74)
 endsg (33)
@@ -1954,3 +2028,4 @@ zczzj (89)
 xszevpx (8)
 """
     print(get_root(input_data))  # Expected bpvhwhh
+    print(get_unbalanced(input_data))  # Expected 256
